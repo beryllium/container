@@ -210,6 +210,23 @@ class ContainerTest extends TestCase
         self::assertInstanceOf(Bar::class, $foo->bar);
     }
 
+    public function testContainerSharesAndInvokesInflectorOnlyOnce(): void
+    {
+        $container = new Container();
+        $container->inflector(Foo::class)->invokeMethod('setBar', [Bar::class]);
+
+        $mockFoo = $this->createMock(Foo::class);
+        $mockFoo->expects($this->once())->method('setBar');
+
+        $container->addShared(Foo::class, $mockFoo);
+        $container->add(Bar::class);
+
+        $container->get(Foo::class);
+        $foo = $container->get(Foo::class);
+
+        $this->assertInstanceOf(Foo::class, $foo, 'Expected to receive a Foo with exactly one call to setBar');
+    }
+
     public function testContainerAwareCannotBeUsedWithoutImplementingInterface(): void
     {
         $this->expectException(BadMethodCallException::class);

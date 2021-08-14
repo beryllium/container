@@ -39,6 +39,8 @@ class Container implements DefinitionContainerInterface
      */
     protected $delegates = [];
 
+    protected const ALREADY_INFLECTED_TAG = '__ALREADY_INFLECTED__';
+
     public function __construct(
         DefinitionAggregateInterface $definitions = null,
         ServiceProviderAggregateInterface $providers = null,
@@ -158,8 +160,21 @@ class Container implements DefinitionContainerInterface
     protected function resolve($id, bool $new = false)
     {
         if ($this->definitions->has($id)) {
-            $resolved = (true === $new) ? $this->definitions->resolveNew($id) : $this->definitions->resolve($id);
-            return $this->inflectors->inflect($resolved);
+            $definition = $this->definitions->getDefinition($id);
+
+            if ($new || !$definition->isShared()) {
+                $resolved = (true === $new) ? $definition->resolveNew() : $definition->resolve();
+                return $this->inflectors->inflect($resolved);
+            }
+
+            if ($definition->hasTag(self::ALREADY_INFLECTED_TAG)) {
+                return $this->definitions->resolve($id);
+            }
+
+            $inflected = $this->inflectors->inflect($this->definitions->resolve($id));
+            $definition->addTag(self::ALREADY_INFLECTED_TAG);
+
+            return $inflected;
         }
 
         if ($this->definitions->hasTag($id)) {
